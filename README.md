@@ -18,7 +18,7 @@ ros2 launch bumperbot_webapp rosbridge_launch.py
 ```
 4. Launch the Gazebo simulation
 ```sh
-ros2 launch bumperbot_bringup simulated_robot.launch.py
+ros2 launch bumperbot_bringup simulated_robot.launch.py use_slam:=true world_name:=small_house
 ```
 5. Launch the page in web browser
 ```sh
