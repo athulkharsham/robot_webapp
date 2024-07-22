@@ -777,60 +777,62 @@
     <script src="https://cdn.jsdelivr.net/npm/roslib@1.3.0/build/roslib.min.js"></script>
     <!-- Script for Map -->
     <script>
-        let mapDataLoaded = false;
-        let width, height, resolution, origin;
-
         document.addEventListener("DOMContentLoaded", function() {
             const mapContainer = document.getElementById('mapContainer');
-
+            const robotMarker = document.getElementById('robotMarker');
+            const pathLine = document.getElementById('pathLine');
+            let pathPoints = '';
+            let width, height, resolution, origin;
+            let mapDataLoaded = false;
+    
             // Initialize ROSLIB connection for map
             const rosMap = new ROSLIB.Ros({
                 url: 'ws://192.168.1.13:9092'
             });
-
+    
             rosMap.on('connection', function() {
                 console.log('Connected to map websocket server.');
             });
-
+    
             rosMap.on('error', function(error) {
                 console.log('Error connecting to map websocket server: ', error);
             });
-
+    
             rosMap.on('close', function() {
                 console.log('Connection to map websocket server closed.');
             });
-
+    
             // Subscribe to the /map topic
             const mapClient = new ROSLIB.Topic({
                 ros: rosMap,
                 name: '/map',
                 messageType: 'nav_msgs/OccupancyGrid'
             });
-
+    
             mapClient.subscribe(function (message) {
                 width = message.info.width;
                 height = message.info.height;
                 resolution = message.info.resolution;
                 origin = message.info.origin;
                 const data = message.data;
-
+    
                 console.log('Map data received', message);
-
+    
                 // Check if a map canvas already exists
                 let mapCanvas = document.getElementById('mapCanvas');
-
+    
                 if (!mapCanvas) {
                     // Create a new canvas if not exists
                     mapCanvas = document.createElement('canvas');
                     mapCanvas.id = 'mapCanvas';
                     mapContainer.appendChild(mapCanvas);
                 }
-
+    
                 // Get the canvas context and update the map
                 const ctx = mapCanvas.getContext('2d');
                 mapCanvas.width = width;
                 mapCanvas.height = height;
-
+    
                 // Draw the map
                 const imageData = ctx.createImageData(width, height);
                 for (let i = 0; i < data.length; i++) {
@@ -841,91 +843,129 @@
                     imageData.data[i * 4 + 2] = color;  // Blue
                     imageData.data[i * 4 + 3] = 255;    // Alpha
                 }
-                ctx.putImageData(imageData, 0, 0);
-
+                // Flip the image data horizontally to correct for Y-axis mirroring
+                const flippedImageData = ctx.createImageData(width, height);
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const sourceIndex = (y * width + x) * 4;
+                        const targetIndex = (y * width + (width - x - 1)) * 4;
+                        flippedImageData.data[targetIndex] = imageData.data[sourceIndex];
+                        flippedImageData.data[targetIndex + 1] = imageData.data[sourceIndex + 1];
+                        flippedImageData.data[targetIndex + 2] = imageData.data[sourceIndex + 2];
+                        flippedImageData.data[targetIndex + 3] = imageData.data[sourceIndex + 3];
+                    }
+                }
+                ctx.putImageData(flippedImageData, 0, 0);
+    
                 // Scale the canvas to fit the container
                 const containerWidth = mapContainer.clientWidth;
                 const containerHeight = mapContainer.clientHeight;
-
-                const scale = Math.max(containerWidth / width, containerHeight / height);
-
+                const scale = Math.min(containerWidth / width, containerHeight / height);
+    
                 mapCanvas.style.width = `${width * scale}px`;
                 mapCanvas.style.height = `${height * scale}px`;
-                mapCanvas.style.position = 'relative';
+                mapCanvas.style.position = 'absolute'; // Ensure it's positioned correctly
                 mapCanvas.style.transform = 'translate(0, 0)';
-
+    
                 mapDataLoaded = true;
             });
-        });
-    </script>
-
-    <!-- Script for Robot Position -->
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const mapContainer = document.getElementById('mapContainer');
-            const robotMarker = document.getElementById('robotMarker');
-            const pathLine = document.getElementById('pathLine');
-            let pathPoints = '';
-
-            // Initialize the second ROSLIB connection for robot position
+    
+            // Initialize ROSLIB connection for robot position
             const rosTF = new ROSLIB.Ros({
                 url: 'ws://192.168.1.13:9093'
             });
-
+    
             rosTF.on('connection', function() {
                 console.log('Connected to tf websocket server.');
             });
-
+    
             rosTF.on('error', function(error) {
                 console.log('Error connecting to tf websocket server: ', error);
             });
-
+    
             rosTF.on('close', function() {
                 console.log('Connection to tf websocket server closed.');
             });
-
-            // Subscribe to the /tf topic with the second connection
+    
+            // Subscribe to the /tf topic
             const tfClient = new ROSLIB.Topic({
                 ros: rosTF,
                 name: '/tf',
                 messageType: 'tf2_msgs/TFMessage'
             });
-
+    
             tfClient.subscribe(function (message) {
                 if (!mapDataLoaded) {
                     return; // Exit if map data is not loaded yet
                 }
-
+    
                 message.transforms.forEach(function (transform) {
                     if (transform.child_frame_id === 'base_footprint') {
                         const x = transform.transform.translation.x;
                         const y = transform.transform.translation.y;
-
-                        const q = transform.transform.rotation;
-                        const yaw = Math.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z));
-
-                        // Scale and translate the robot position
+    
+                        // Convert robot coordinates to map coordinates
                         const containerWidth = mapContainer.clientWidth;
                         const containerHeight = mapContainer.clientHeight;
-                        const scale = Math.max(containerWidth / width, containerHeight / height);
-
-                        const markerX = (x - origin.position.x) / resolution * scale;
-                        const markerY = containerHeight - ((y - origin.position.y) / resolution * scale); // Adjusted for inverted y-axis
-
-                        // Update the marker position and rotation
-                        robotMarker.style.left = `${markerX}px`;
-                        robotMarker.style.top = `${markerY}px`;
-                        robotMarker.style.transform = `translate(-50%, -50%) rotate(${yaw}rad)`;
-
-                        // Update the robot position text
-                        document.getElementById('robotPosition').innerText = `${x.toFixed(2)}, ${y.toFixed(2)}`;
-
+                        const scale = Math.min(containerWidth / width, containerHeight / height);
+    
+                        // Calculate the marker's position in the map
+                        const mapCanvasWidth = width * scale;
+                        const mapCanvasHeight = height * scale;
+    
+                        // Correct coordinate transformations
+                        const markerX = ((x - origin.position.x) / resolution) * scale;
+                        const markerY = ((y - origin.position.y) / resolution) * scale;
+    
+                        // Adjust the marker position
+                        const offsetX = (containerWidth - mapCanvasWidth) / 2;
+                        const offsetY = (containerHeight - mapCanvasHeight) / 2;
+    
+                        // Apply correct transformation (invert y-axis and adjust coordinates)
+                        const finalMarkerX = markerX + offsetX;
+                        const finalMarkerY = containerHeight - markerY - offsetY;
+    
+                        // Update the marker position
+                        robotMarker.style.left = `${finalMarkerX}px`;
+                        robotMarker.style.top = `${finalMarkerY}px`;
+                        robotMarker.style.transform = `translate(-50%, -50%)`;
+    
                         // Update the path
-                        pathPoints += ` ${markerX},${markerY}`;
+                        pathPoints += ` ${finalMarkerX},${finalMarkerY}`;
                         pathLine.setAttribute('points', pathPoints);
                     }
                 });
             });
+    
+            // Adjust map and marker on window resize
+            window.addEventListener('resize', function() {
+                if (mapDataLoaded) {
+                    const mapCanvas = document.getElementById('mapCanvas');
+                    if (mapCanvas) {
+                        const containerWidth = mapContainer.clientWidth;
+                        const containerHeight = mapContainer.clientHeight;
+                        const scale = Math.min(containerWidth / width, containerHeight / height);
+    
+                        mapCanvas.style.width = `${width * scale}px`;
+                        mapCanvas.style.height = `${height * scale}px`;
+    
+                        // Recalculate robot marker position
+                        const markers = document.querySelectorAll('#robotMarker');
+                        markers.forEach(marker => {
+                            const markerX = ((marker.getAttribute('data-x') - origin.position.x) / resolution) * scale;
+                            const markerY = ((marker.getAttribute('data-y') - origin.position.y) / resolution) * scale;
+                            const offsetX = (containerWidth - (width * scale)) / 2;
+                            const offsetY = (containerHeight - (height * scale)) / 2;
+    
+                            const finalMarkerX = markerX + offsetX;
+                            const finalMarkerY = containerHeight - markerY - offsetY;
+    
+                            marker.style.left = `${finalMarkerX}px`;
+                            marker.style.top = `${finalMarkerY}px`;
+                        });
+                    }
+                }
+            });
         });
-    </script>
+    </script>        
 </body>
