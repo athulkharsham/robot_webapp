@@ -66,6 +66,12 @@
         .wrapper {
             padding: 0; /* Add this line */
         }
+        @media only screen and (max-width: 600px) {
+            #robotMarker {
+                width: 5px; /* Smaller size for mobile */
+                height: 5px; /* Smaller size for mobile */
+        }
+}
     </style>
     <nav class="navbar navbar-expand-lg navbar-light bg-white py-3">
         <div class="container">
@@ -809,7 +815,7 @@
                 messageType: 'nav_msgs/OccupancyGrid'
             });
     
-            mapClient.subscribe(function (message) {
+            mapClient.subscribe(function(message) {
                 width = message.info.width;
                 height = message.info.height;
                 resolution = message.info.resolution;
@@ -859,14 +865,7 @@
                 ctx.putImageData(flippedImageData, 0, 0);
     
                 // Scale the canvas to fit the container
-                const containerWidth = mapContainer.clientWidth;
-                const containerHeight = mapContainer.clientHeight;
-                const scale = Math.min(containerWidth / width, containerHeight / height);
-    
-                mapCanvas.style.width = `${width * scale}px`;
-                mapCanvas.style.height = `${height * scale}px`;
-                mapCanvas.style.position = 'absolute';
-                mapCanvas.style.transform = 'translate(0, 0)';
+                updateMapCanvasScale();
     
                 mapDataLoaded = true;
             });
@@ -895,48 +894,21 @@
                 messageType: 'tf2_msgs/TFMessage'
             });
     
-            tfClient.subscribe(function (message) {
+            tfClient.subscribe(function(message) {
                 if (!mapDataLoaded) {
                     return; // Exit if map data is not loaded yet
                 }
     
-                message.transforms.forEach(function (transform) {
+                message.transforms.forEach(function(transform) {
                     if (transform.child_frame_id === 'base_footprint') {
                         const x = transform.transform.translation.x;
                         const y = transform.transform.translation.y;
-
+    
                         // Update the position value in the footer
                         robotPositionElement.textContent = `${x.toFixed(2)}, ${y.toFixed(2)}`;
     
                         // Convert robot coordinates to map coordinates
-                        const containerWidth = mapContainer.clientWidth;
-                        const containerHeight = mapContainer.clientHeight;
-                        const scale = Math.min(containerWidth / width, containerHeight / height);
-    
-                        // Calculate the marker's position in the map
-                        const mapCanvasWidth = width * scale;
-                        const mapCanvasHeight = height * scale;
-    
-                        // Apply the coordinate transformations
-                        const markerX = ((x - origin.position.x) / resolution) * scale;
-                        const markerY = ((-y - origin.position.y) / resolution) * scale;
-    
-                        // Adjust the marker position
-                        const offsetX = (containerWidth - mapCanvasWidth) / 2;
-                        const offsetY = (containerHeight - mapCanvasHeight) / 2;
-    
-                        // Invert both the x-axis and y-axis
-                        const finalMarkerX = containerWidth - (markerX + offsetX);
-                        const finalMarkerY = containerHeight - (markerY - offsetY);
-    
-                        // Update the marker position
-                        robotMarker.style.left = `${finalMarkerX}px`;
-                        robotMarker.style.top = `${finalMarkerY}px`;
-                        robotMarker.style.transform = `translate(-50%, -50%)`;
-    
-                        // Update the path
-                        pathPoints += ` ${finalMarkerX},${finalMarkerY}`;
-                        pathLine.setAttribute('points', pathPoints);
+                        updateRobotMarker(x, y);
                     }
                 });
             });
@@ -944,33 +916,58 @@
             // Adjust map and marker on window resize
             window.addEventListener('resize', function() {
                 if (mapDataLoaded) {
+                    updateMapCanvasScale();
                     const mapCanvas = document.getElementById('mapCanvas');
                     if (mapCanvas) {
-                        const containerWidth = mapContainer.clientWidth;
-                        const containerHeight = mapContainer.clientHeight;
-                        const scale = Math.min(containerWidth / width, containerHeight / height);
-    
-                        mapCanvas.style.width = `${width * scale}px`;
-                        mapCanvas.style.height = `${height * scale}px`;
-    
                         // Recalculate robot marker position
-                        const markers = document.querySelectorAll('#robotMarker');
-                        markers.forEach(marker => {
-                            const markerX = ((marker.getAttribute('data-x') - origin.position.x) / resolution) * scale;
-                            const markerY = ((marker.getAttribute('data-y') / resolution) * scale);
-                            const offsetX = (containerWidth - (width * scale)) / 2;
-                            const offsetY = (containerHeight - (height * scale)) / 2;
-    
-                            // Invert both the x-axis and y-axis
-                            const finalMarkerX = containerWidth - (markerX + offsetX);
-                            const finalMarkerY = containerHeight - (markerY + offsetY);
-    
-                            marker.style.left = `${finalMarkerX}px`;
-                            marker.style.top = `${finalMarkerY}px`;
-                        });
+                        const x = parseFloat(robotMarker.getAttribute('data-x'));
+                        const y = parseFloat(robotMarker.getAttribute('data-y'));
+                        updateRobotMarker(x, y);
                     }
                 }
             });
+    
+            function updateMapCanvasScale() {
+                const mapCanvas = document.getElementById('mapCanvas');
+                const containerWidth = mapContainer.clientWidth;
+                const containerHeight = mapContainer.clientHeight;
+                const scale = Math.min(containerWidth / width, containerHeight / height);
+    
+                mapCanvas.style.width = `${width * scale}px`;
+                mapCanvas.style.height = `${height * scale}px`;
+            }
+    
+            function updateRobotMarker(x, y) {
+                // Convert robot coordinates to map coordinates
+                const containerWidth = mapContainer.clientWidth;
+                const containerHeight = mapContainer.clientHeight;
+                const scale = Math.min(containerWidth / width, containerHeight / height);
+    
+                // Calculate the marker's position in the map
+                const mapCanvasWidth = width * scale;
+                const mapCanvasHeight = height * scale;
+    
+                // Apply the coordinate transformations
+                const markerX = ((-x - origin.position.x) / resolution) * scale;
+                const markerY = ((height - (-y - origin.position.y) / resolution) * scale);
+    
+                // Adjust the marker position
+                const offsetX = (containerWidth - mapCanvasWidth) / 2;
+                const offsetY = (containerHeight - mapCanvasHeight) / 2;
+    
+                // Update the marker position
+                const finalMarkerX = markerX + offsetX;
+                const finalMarkerY = markerY + offsetY;
+                robotMarker.style.left = `${finalMarkerX}px`;
+                robotMarker.style.top = `${finalMarkerY}px`;
+                robotMarker.style.transform = `translate(-50%, -50%)`;
+                robotMarker.setAttribute('data-x', x);
+                robotMarker.setAttribute('data-y', y);
+    
+                // Update the path
+                pathPoints += ` ${finalMarkerX},${finalMarkerY}`;
+                pathLine.setAttribute('points', pathPoints);
+            }
         });
-    </script>                                                    
+    </script>                                                     
 </body>
