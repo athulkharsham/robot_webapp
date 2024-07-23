@@ -843,6 +843,7 @@
                     imageData.data[i * 4 + 2] = color;  // Blue
                     imageData.data[i * 4 + 3] = 255;    // Alpha
                 }
+    
                 // Flip the image data horizontally to correct for Y-axis mirroring
                 const flippedImageData = ctx.createImageData(width, height);
                 for (let y = 0; y < height; y++) {
@@ -913,17 +914,17 @@
                         const mapCanvasWidth = width * scale;
                         const mapCanvasHeight = height * scale;
     
-                        // Correct coordinate transformations
+                        // Apply the coordinate transformations
                         const markerX = ((x - origin.position.x) / resolution) * scale;
-                        const markerY = ((y - origin.position.y) / resolution) * scale;
+                        const markerY = ((-y - origin.position.y) / resolution) * scale;
     
                         // Adjust the marker position
                         const offsetX = (containerWidth - mapCanvasWidth) / 2;
                         const offsetY = (containerHeight - mapCanvasHeight) / 2;
     
-                        // Apply correct transformation (invert y-axis and adjust coordinates)
-                        const finalMarkerX = markerX + offsetX;
-                        const finalMarkerY = containerHeight - markerY - offsetY;
+                        // Invert both the x-axis and y-axis
+                        const finalMarkerX = containerWidth - (markerX + offsetX);
+                        const finalMarkerY = containerHeight - (markerY - offsetY);
     
                         // Update the marker position
                         robotMarker.style.left = `${finalMarkerX}px`;
@@ -953,12 +954,13 @@
                         const markers = document.querySelectorAll('#robotMarker');
                         markers.forEach(marker => {
                             const markerX = ((marker.getAttribute('data-x') - origin.position.x) / resolution) * scale;
-                            const markerY = ((marker.getAttribute('data-y') - origin.position.y) / resolution) * scale;
+                            const markerY = ((marker.getAttribute('data-y') / resolution) * scale);
                             const offsetX = (containerWidth - (width * scale)) / 2;
                             const offsetY = (containerHeight - (height * scale)) / 2;
     
-                            const finalMarkerX = markerX + offsetX;
-                            const finalMarkerY = containerHeight - markerY - offsetY;
+                            // Invert both the x-axis and y-axis
+                            const finalMarkerX = containerWidth - (markerX + offsetX);
+                            const finalMarkerY = containerHeight - (markerY + offsetY);
     
                             marker.style.left = `${finalMarkerX}px`;
                             marker.style.top = `${finalMarkerY}px`;
@@ -967,5 +969,5 @@
                 }
             });
         });
-    </script>        
+    </script>                                                    
 </body>
