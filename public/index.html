@@ -871,46 +871,38 @@
             });
     
             // Initialize ROSLIB connection for robot position
-            const rosTF = new ROSLIB.Ros({
+            const robotPose = new ROSLIB.Ros({
                 url: 'ws://192.168.1.13:9093'
             });
     
-            rosTF.on('connection', function() {
+            robotPose.on('connection', function() {
                 console.log('Connected to tf websocket server.');
             });
     
-            rosTF.on('error', function(error) {
+            robotPose.on('error', function(error) {
                 console.log('Error connecting to tf websocket server: ', error);
             });
     
-            rosTF.on('close', function() {
+            robotPose.on('close', function() {
                 console.log('Connection to tf websocket server closed.');
             });
     
             // Subscribe to the /tf topic
             const tfClient = new ROSLIB.Topic({
-                ros: rosTF,
-                name: '/tf',
-                messageType: 'tf2_msgs/TFMessage'
+                ros: robotPose,
+                name: '/robot_pose',
+                messageType: 'geometry_msgs/Point'
             });
     
             tfClient.subscribe(function(message) {
                 if (!mapDataLoaded) {
                     return; // Exit if map data is not loaded yet
                 }
-    
-                message.transforms.forEach(function(transform) {
-                    if (transform.child_frame_id === 'base_footprint') {
-                        const x = transform.transform.translation.x;
-                        const y = transform.transform.translation.y;
-    
-                        // Update the position value in the footer
-                        robotPositionElement.textContent = `${x.toFixed(2)}, ${y.toFixed(2)}`;
-    
-                        // Convert robot coordinates to map coordinates
-                        updateRobotMarker(x, y);
-                    }
-                });
+                const x = message.x;
+                const y = message.y;
+                // Update the position value in the footer
+                robotPositionElement.textContent = `${x.toFixed(2)}, ${y.toFixed(2)}`;
+                updateRobotMarker(x, y);
             });
     
             // Adjust map and marker on window resize
@@ -949,7 +941,7 @@
     
                 // Apply the coordinate transformations
                 const markerX = ((-x - origin.position.x) / resolution) * scale;
-                const markerY = ((height - (-y - origin.position.y) / resolution) * scale);
+                const markerY = ((y - origin.position.y) / resolution) * scale;
     
                 // Adjust the marker position
                 const offsetX = (containerWidth - mapCanvasWidth) / 2;
