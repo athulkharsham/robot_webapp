@@ -472,7 +472,7 @@
                         </ul>
                     </li>
                     <li class="nav-item ms-lg-auto my-auto ms-3 ms-lg-0 mt-2 mt-lg-0">
-                        <a href="javascript:;" class="btn btn-sm  bg-gradient-primary  btn-round mb-0 me-1 mt-2 mt-md-0">Free Download</a></li>
+                        <a href="javascript:;" class="btn btn-sm  bg-gradient-primary  btn-round mb-0 me-1 mt-2 mt-md-0">CAMERA VIEW</a></li>
                 </ul>
             </div>
         </div>
@@ -505,7 +505,7 @@
                     <hr>
                     <div class="stats">
                         <i class="fa fa-map-marker"></i>
-                        Robot Position: <span id="robotPosition" class="position-value">0, 0</span>
+                        Robot's Position: <span id="robotPosition" class="position-value">0, 0</span>
                     </div>
                 </div>
             </div>
@@ -552,7 +552,7 @@
                                     function sendJoystickCommand() {
                                         const cmdVel = { 
                                             op: 'publish',
-                                            topic: '/bumperbot_controller/cmd_vel_unstamped',
+                                            topic: '/cmd_vel',
                                             msg: { 
                                                 linear: { 
                                                     x: normalizedY, 
@@ -613,7 +613,7 @@
                                         // Set velocities to zero when joystick is released
                                         const cmdVel = { 
                                             op: 'publish', 
-                                            topic: '/bumperbot_controller/cmd_vel_unstamped', 
+                                            topic: '/cmd_vel', 
                                             msg: { 
                                                 linear: { 
                                                     x: 0, 
@@ -666,10 +666,10 @@
                 <div class="col-lg-4">
                     <a href="javascript:;">
                         <div class="card card-background move-on-hover mb-4">
-                            <div class="full-background" style="background-image: url('assets/image/RobotStatus.png')"></div>
+                            <div class="full-background" style="background-image: url('assets/image/wheeled_robot.jpeg')"></div>
                             <div class="card-body pt-12">
                                 <h4 class="text-white">Robot Status</h4>
-                                <p>Here we can view the current status of the robot. Mapping, roaming around, being controlled and so on</p>
+                                <p id="robotCurrentState">Waiting for state...</p>
                             </div>
                         </div>
                     </a>
@@ -714,7 +714,7 @@
                     <a href="javascript:;" class="text-secondary me-xl-4 me-4">
                         <span class="text-lg fab fa-pinterest" aria-hidden="true"></span>
                     </a>
-                    <a href="https://github.com/AntoBrandi/Self-Driving-and-ROS-2-Learn-by-Doing-Map-Localization" class="text-secondary me-xl-4 me-4">
+                    <a href="https://github.com/athulkharsham/my_turtlebot3" class="text-secondary me-xl-4 me-4">
                         <span class="text-lg fab fa-github" aria-hidden="true"></span>
                     </a>
                 </div>
@@ -904,7 +904,20 @@
                 robotPositionElement.textContent = `${x.toFixed(2)}, ${y.toFixed(2)}`;
                 updateRobotMarker(x, y);
             });
-    
+            
+                // Subscribe to the /robot_current_state topic
+            const stateClient = new ROSLIB.Topic({
+                ros: robotPose,
+                name: '/robot_current_state',
+                messageType: 'std_msgs/String'
+            });
+
+            stateClient.subscribe(function(message) {
+                // Update the state value in the HTML
+                const stateElement = document.getElementById('robotCurrentState');
+                stateElement.textContent = message.data;
+            });    
+
             // Adjust map and marker on window resize
             window.addEventListener('resize', function() {
                 if (mapDataLoaded) {
