@@ -137,9 +137,6 @@
                                             Features
                                         </a>
                                         <a class="dropdown-item ps-3 border-radius-md mb-1" href="javascript:;">
-                                            Pricing
-                                        </a>
-                                        <a class="dropdown-item ps-3 border-radius-md mb-1" href="javascript:;">
                                             FAQ
                                         </a>
                                         <a class="dropdown-item ps-3 border-radius-md mb-1" href="javascript:;">
@@ -180,9 +177,6 @@
                                     </a>
                                     <a class="dropdown-item ps-3 border-radius-md mb-1" href="javascript:;">
                                         Features
-                                    </a>
-                                    <a class="dropdown-item ps-3 border-radius-md mb-1" href="javascript:;">
-                                        Pricing
                                     </a>
                                     <a class="dropdown-item ps-3 border-radius-md mb-1" href="javascript:;">
                                         FAQ
@@ -473,6 +467,11 @@
                     </li>
                     <li class="nav-item ms-lg-auto my-auto ms-3 ms-lg-0 mt-2 mt-lg-0">
                         <a href="javascript:;" class="btn btn-sm  bg-gradient-primary  btn-round mb-0 me-1 mt-2 mt-md-0">CAMERA VIEW</a></li>
+                    <li class="nav-item ms-lg-auto my-auto ms-3 ms-lg-0 mt-2 mt-lg-0">
+                        <a id="tracking-button" href="javascript:;" class="btn btn-sm bg-gradient-primary btn-round mb-0 me-1 mt-2 mt-md-0">
+                            START PET TRACKING
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -552,7 +551,7 @@
                                     function sendJoystickCommand() {
                                         const cmdVel = { 
                                             op: 'publish',
-                                            topic: '/cmd_vel',
+                                            topic: '/cmd_vel', // /demo/cmd_demo fot controlling pet
                                             msg: { 
                                                 linear: { 
                                                     x: normalizedY, 
@@ -613,7 +612,7 @@
                                         // Set velocities to zero when joystick is released
                                         const cmdVel = { 
                                             op: 'publish', 
-                                            topic: '/cmd_vel', 
+                                            topic: '/cmd_vel',// /demo/cmd_demo for controlling pet
                                             msg: { 
                                                 linear: { 
                                                     x: 0, 
@@ -696,9 +695,6 @@
                     </a>
                     <a href="javascript:;" class="text-secondary me-xl-5 me-3 mb-sm-0 mb-2">
                         Blog
-                    </a>
-                    <a href="javascript:;" class="text-secondary me-xl-5 me-3 mb-sm-0 mb-2">
-                        Pricing
                     </a>
                 </div>
                 <div class="col-lg-8 mx-auto text-center mb-4 mt-2">
@@ -973,6 +969,40 @@
                 pathPoints += ` ${finalMarkerX},${finalMarkerY}`;
                 pathLine.setAttribute('points', pathPoints);
             }
+        
+            // Create a ROS publisher on the /track_pet topic
+            const trackPetPublisher = new ROSLIB.Topic({
+                ros: robotPose,
+                name: '/track_pet',
+                messageType: 'std_msgs/Bool'
+            });
+
+            // Function to toggle the button and publish message
+            function toggleTracking() {
+                const button = document.getElementById('tracking-button');
+                let trackingActive = (button.textContent.trim() === 'STOP');
+
+                // Toggle button text and color
+                if (trackingActive) {
+                    button.textContent = 'START PET TRACKING';
+                    button.classList.remove('bg-gradient-danger');
+                    button.classList.add('bg-gradient-primary');
+                } else {
+                    button.textContent = 'STOP';
+                    button.classList.remove('bg-gradient-primary');
+                    button.classList.add('bg-gradient-danger');
+                }
+
+                // Publish message to /track_pet topic
+                const message = new ROSLIB.Message({
+                    data: !trackingActive
+                });
+                trackPetPublisher.publish(message);
+            }
+
+            // Add event listener to the button
+            document.getElementById('tracking-button').addEventListener('click', toggleTracking);
+
         });
     </script>                                                     
 </body>
