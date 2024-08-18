@@ -27,3 +27,10 @@ ros2 launch bumperbot_bringup simulated_robot.launch.py use_slam:=true world_nam
 ```sh
 http://localhost:3000/
 ```
+
+## Web application
+In this video, we can see a web application to control the robot, visualize real time robot's location in map start pet tracking, live camera view and more..
+
+[![Watch the video](https://img.youtube.com/vi/l0P7VqYzA0s/0.jpg)](https://www.youtube.com/watch?v=l0P7VqYzA0s)
+
+*Click the thumbnail above to watch the video on YouTube.*
